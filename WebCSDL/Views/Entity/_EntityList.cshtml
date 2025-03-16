@@ -1,0 +1,37 @@
+﻿@model List<WebCSDL.Models.Entity>
+<div class="card">
+    <div class="card-header">Danh sách thực thể</div>
+    <div class="card-body">
+        <table class="table">
+            <thead><tr><th>Tên</th><th>Thuộc tính</th><th>Hành động</th></tr></thead>
+            <tbody>
+                @foreach (var entity in Model)
+                {
+                    <tr>
+                        <td>@entity.Name</td>
+                        <td>@string.Join(", ", entity.Attributes.Select(a => a.Name + (a.IsPrimaryKey ? " (PK)" : "")))</td>
+                        <td>
+                            <button class="btn btn-sm btn-warning" onclick="editEntity('@entity.Name')">Sửa</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteEntity('@entity.Name')">Xóa</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function deleteEntity(name) {
+        if (confirm("Bạn có chắc muốn xóa thực thể này?")) {
+            $.post("/Entity/DeleteEntity", { name: name }, function (data) {
+                $("#entityList").html(data);
+                updateEntityDropdowns();
+            });
+        }
+    }
+
+    function editEntity(name) {
+        alert("Chức năng sửa thực thể đang được phát triển!");
+    }
+</script>

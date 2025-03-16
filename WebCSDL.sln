@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35825.156 d17.13
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebCSDL", "WebCSDL\WebCSDL.csproj", "{B3C2A4D7-91D8-430F-9B34-47A7E91927C2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B3C2A4D7-91D8-430F-9B34-47A7E91927C2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B3C2A4D7-91D8-430F-9B34-47A7E91927C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B3C2A4D7-91D8-430F-9B34-47A7E91927C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B3C2A4D7-91D8-430F-9B34-47A7E91927C2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {944C7846-680B-48EC-A370-A07E5064F3E6}
+	EndGlobalSection
+EndGlobal

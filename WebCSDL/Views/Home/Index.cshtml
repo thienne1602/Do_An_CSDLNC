@@ -1,0 +1,703 @@
+﻿@model WebCSDL.Models.HomeViewModel
+
+@{
+    ViewData["Title"] = "WebCSDL - Học Cơ Sở Dữ Liệu";
+}
+<style>
+    body {
+        background: #0f0f1a;
+        color: #c4c4d8;
+    }
+
+    .card, .custom-table {
+        background: #23233b;
+    }
+
+    .btn-primary {
+        background: #8b5cf6;
+    }
+</style>
+<div class="container-fluid mt-4" style="min-height: 80vh;">
+    <div class="row h-100">
+        <!-- Bên trái -->
+        <div class="col-md-6 h-100 d-flex flex-column">
+            <h2 class="mb-4 section-title">Nhập liệu</h2>
+
+            <!-- Tabs -->
+            <ul class="nav nav-tabs custom-tabs" id="inputTabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" id="entity-tab" data-toggle="tab" href="#entityTab" role="tab" aria-controls="entityTab" aria-selected="true">
+                        <i class="fas fa-table mr-2"></i> Thêm thực thể
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="relationship-tab" data-toggle="tab" href="#relationshipTab" role="tab" aria-controls="relationshipTab" aria-selected="false">
+                        <i class="fas fa-link mr-2"></i> Thêm mối quan hệ
+                    </a>
+                </li>
+            </ul>
+
+            <!-- Nút chức năng (di chuyển lên trên) -->
+            <div class="function-buttons mt-3 mb-3">
+                <button class="btn btn-primary btn-block custom-btn mb-2" onclick="loadConceptualDesign()"><i class="fas fa-sitemap mr-2"></i>Thiết kế quan niệm</button>
+                <button class="btn btn-primary btn-block custom-btn mb-2" onclick="loadLogicalDesign()"><i class="fas fa-project-diagram mr-2"></i>Cấu trúc logic</button>
+                <button class="btn btn-primary btn-block custom-btn mb-2" onclick="loadPhysicalDesign()"><i class="fas fa-database mr-2"></i>Cấu trúc vật lý</button>
+                <button class="btn btn-primary btn-block custom-btn mb-2" onclick="generateERD()"><i class="fas fa-diagram-project mr-2"></i>Tạo mã ERD</button>
+                <button class="btn btn-primary btn-block custom-btn" onclick="evaluateSchema()"><i class="fas fa-check-circle mr-2"></i>Đánh giá lược đồ</button>
+            </div>
+
+            <!-- Tab nội dung -->
+            <div class="tab-content flex-grow-1 overflow-auto custom-tab-content" id="inputTabContent">
+                <!-- Tab Thêm thực thể -->
+                <div class="tab-pane fade show active" id="entityTab" role="tabpanel" aria-labelledby="entity-tab">
+                    <div class="card custom-card mb-4">
+                        <div class="card-header">Thêm thực thể</div>
+                        <div class="card-body">
+                            <form id="entityForm">
+                                <div class="form-group">
+                                    <label for="entityName" class="text-light">Tên thực thể:</label>
+                                    <input type="text" class="form-control custom-input" id="entityName" name="name" required />
+                                </div>
+                                <div id="attributesContainer">
+                                    <div class="form-group attribute-row d-flex align-items-center mb-3">
+                                        <label class="text-light mr-2">Thuộc tính:</label>
+                                        <input type="text" class="form-control custom-input w-50" name="attributeNames[]" required />
+                                        <label class="ml-3 text-light">Khóa chính?</label>
+                                        <input type="checkbox" name="isPrimaryKeys[]" value="true" class="ml-2 custom-checkbox" />
+                                        <input type="hidden" name="isPrimaryKeys[]" value="false" />
+                                        <button type="button" class="btn btn-danger btn-sm ml-3 custom-btn remove-attribute"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <button type="button" class="btn btn-secondary btn-sm custom-btn" id="addAttribute"><i class="fas fa-plus mr-2"></i>Thêm thuộc tính</button>
+                                    <div>
+                                        <button type="submit" class="btn btn-primary custom-btn mr-2"><i class="fas fa-save mr-2"></i>Thêm thực thể</button>
+                                        <button type="button" class="btn btn-secondary custom-btn" id="cancelEntityForm"><i class="fas fa-times mr-2"></i>Hủy</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    <div id="entityList" class="mb-4 flex-grow-1 overflow-auto">
+                        <table class="table custom-table">
+                            <thead><tr><th>Tên</th><th>Thuộc tính</th><th>Hành động</th></tr></thead>
+                            <tbody id="entityTableBody">
+                                @foreach (var entity in Model.Entities)
+                                {
+                                    <tr data-id="@entity.Id">
+                                        <td>@entity.Name</td>
+                                        <td>@string.Join(", ", entity.Attributes.Select(a => a.Name + (a.IsPrimaryKey ? " (PK)" : "")))</td>
+                                        <td>
+                                            <button class="btn btn-warning btn-sm custom-btn mr-2" onclick="editEntity('@entity.Name')"><i class="fas fa-edit"></i></button>
+                                            <button class="btn btn-danger btn-sm custom-btn" onclick="deleteEntity('@entity.Name')"><i class="fas fa-trash"></i></button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tab Thêm mối quan hệ -->
+                <div class="tab-pane fade" id="relationshipTab" role="tabpanel" aria-labelledby="relationship-tab">
+                    <div class="card custom-card mb-4">
+                        <div class="card-header">Thêm mối quan hệ</div>
+                        <div class="card-body">
+                            <form id="relationshipForm">
+                                <div class="form-group">
+                                    <label for="entity1" class="text-light">Thực thể 1:</label>
+                                    <select class="form-control custom-input" id="entity1" name="entity1" required>
+                                        <option value="">Chọn thực thể</option>
+                                        @foreach (var entity in Model.Entities)
+                                        {
+                                            <option value="@entity.Name">@entity.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="entity2" class="text-light">Thực thể 2:</label>
+                                    <select class="form-control custom-input" id="entity2" name="entity2" required>
+                                        <option value="">Chọn thực thể</option>
+                                        @foreach (var entity in Model.Entities)
+                                        {
+                                            <option value="@entity.Name">@entity.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="type" class="text-light">Loại mối quan hệ:</label>
+                                    <select class="form-control custom-input" id="type" name="type" required>
+                                        <option value="1-1">1-1</option>
+                                        <option value="1-N">1-N</option>
+                                        <option value="N-M">N-M</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary custom-btn"><i class="fas fa-save mr-2"></i>Thêm mối quan hệ</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div id="relationshipList" class="mb-4 flex-grow-1 overflow-auto">
+                        <table class="table custom-table">
+                            <thead><tr><th>Thực thể 1</th><th>Thực thể 2</th><th>Loại</th><th>Hành động</th></tr></thead>
+                            <tbody id="relationshipTableBody">
+                                @if (Model.Relationships != null && Model.Relationships.Any())
+                                {
+                                    @foreach (var rel in Model.Relationships)
+                                    {
+                                        <tr data-entity1="@rel.Entity1" data-entity2="@rel.Entity2">
+                                            <td>@rel.Entity1</td>
+                                            <td>@rel.Entity2</td>
+                                            <td>@rel.Type</td>
+                                            <td>
+                                                <button class="btn btn-danger btn-sm custom-btn" onclick="deleteRelationship('@rel.Entity1', '@rel.Entity2')"><i class="fas fa-trash"></i></button>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr><td colspan="4" class="text-center">Không có mối quan hệ nào</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal chỉnh sửa thực thể -->
+        <div class="modal fade" id="editEntityModal" tabindex="-1" role="dialog" aria-labelledby="editEntityModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content custom-modal">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editEntityModalLabel">Chỉnh sửa thực thể</h5>
+                        <button type="button" class="close text-light" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">×</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="editEntityForm">
+                            <input type="hidden" id="editOldName" name="oldName" />
+                            <div class="form-group">
+                                <label for="editEntityName" class="text-light">Tên thực thể:</label>
+                                <input type="text" class="form-control custom-input" id="editEntityName" name="newName" required />
+                            </div>
+                            <div id="editAttributesContainer"></div>
+                            <button type="button" class="btn btn-secondary btn-sm custom-btn mt-2" id="editAddAttribute"><i class="fas fa-plus mr-2"></i>Thêm thuộc tính</button>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary custom-btn" data-dismiss="modal"><i class="fas fa-times mr-2"></i>Hủy</button>
+                        <button type="submit" class="btn btn-primary custom-btn" id="saveEditEntity"><i class="fas fa-save mr-2"></i>Lưu thay đổi</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bên phải -->
+        <div class="col-md-6 h-100">
+            <h2 class="mb-4 section-title">Kết quả</h2>
+            <div id="resultDisplay" class="card custom-card h-100 overflow-auto">
+                <div class="card-body">
+                    <p>Chọn một chức năng để xem kết quả.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            updateEntityDropdowns();
+
+            $("#addAttribute").click(function () {
+                $("#attributesContainer").append(`
+                    <div class="form-group attribute-row d-flex align-items-center mb-3">
+                        <label class="text-light mr-2">Thuộc tính:</label>
+                        <input type="text" class="form-control custom-input w-50" name="attributeNames[]" required />
+                        <label class="ml-3 text-light">Khóa chính?</label>
+                        <input type="checkbox" name="isPrimaryKeys[]" value="true" class="ml-2 custom-checkbox" />
+                        <input type="hidden" name="isPrimaryKeys[]" value="false" />
+                        <button type="button" class="btn btn-danger btn-sm ml-3 custom-btn remove-attribute"><i class="fas fa-trash"></i></button>
+                    </div>
+                `);
+            });
+
+            $(document).on("click", ".remove-attribute", function () {
+                $(this).closest(".attribute-row").remove();
+            });
+
+            $("#entityForm").submit(function (e) {
+                e.preventDefault();
+                var formData = $(this).serialize();
+                var attributeInputs = $("input[name='attributeNames[]']").filter(function () {
+                    return $(this).val().trim() !== "";
+                });
+
+                if (attributeInputs.length === 0) {
+                    alert("Vui lòng thêm ít nhất một thuộc tính hợp lệ!");
+                    return;
+                }
+
+                $.post("/Home/AddEntity", formData, function (data) {
+                    if (data.success) {
+                        updateEntityTable(data.entities);
+                        updateEntityDropdowns();
+                        $("#entityForm")[0].reset();
+                        $("#attributesContainer").html(`
+                            <div class="form-group attribute-row d-flex align-items-center mb-3">
+                                <label class="text-light mr-2">Thuộc tính:</label>
+                                <input type="text" class="form-control custom-input w-50" name="attributeNames[]" required />
+                                <label class="ml-3 text-light">Khóa chính?</label>
+                                <input type="checkbox" name="isPrimaryKeys[]" value="true" class="ml-2 custom-checkbox" />
+                                <input type="hidden" name="isPrimaryKeys[]" value="false" />
+                                <button type="button" class="btn btn-danger btn-sm ml-3 custom-btn remove-attribute"><i class="fas fa-trash"></i></button>
+                            </div>
+                        `);
+                    } else {
+                        alert(data.message);
+                    }
+                }).fail(function (xhr) {
+                    alert("Lỗi khi thêm thực thể: " + xhr.responseText);
+                });
+            });
+
+            $("#cancelEntityForm").click(function () {
+                $("#entityForm")[0].reset();
+                $("#attributesContainer").html(`
+                    <div class="form-group attribute-row d-flex align-items-center mb-3">
+                        <label class="text-light mr-2">Thuộc tính:</label>
+                        <input type="text" class="form-control custom-input w-50" name="attributeNames[]" required />
+                        <label class="ml-3 text-light">Khóa chính?</label>
+                        <input type="checkbox" name="isPrimaryKeys[]" value="true" class="ml-2 custom-checkbox" />
+                        <input type="hidden" name="isPrimaryKeys[]" value="false" />
+                        <button type="button" class="btn btn-danger btn-sm ml-3 custom-btn remove-attribute"><i class="fas fa-trash"></i></button>
+                    </div>
+                `);
+            });
+
+            $('#relationship-tab').on('shown.bs.tab', function (e) {
+                updateEntityDropdowns();
+            });
+
+            $("#relationshipForm").submit(function (e) {
+                e.preventDefault();
+                var formData = $(this).serialize();
+                $.post("/Home/AddRelationship", formData, function (data) {
+                    if (data.success) {
+                        updateRelationshipTable(data.relationships);
+                        $("#relationshipForm")[0].reset();
+                    } else {
+                        alert(data.message);
+                    }
+                }).fail(function (xhr) {
+                    alert("Lỗi khi thêm mối quan hệ: " + xhr.responseText);
+                });
+            });
+
+            $("#editAddAttribute").click(function () {
+                $("#editAttributesContainer").append(`
+                    <div class="form-group attribute-row d-flex align-items-center mb-3">
+                        <label class="text-light mr-2">Thuộc tính:</label>
+                        <input type="text" class="form-control custom-input w-50" name="attributeNames[]" required />
+                        <label class="ml-3 text-light">Khóa chính?</label>
+                        <input type="checkbox" name="isPrimaryKeys[]" value="true" class="ml-2 custom-checkbox" />
+                        <input type="hidden" name="isPrimaryKeys[]" value="false" />
+                        <button type="button" class="btn btn-danger btn-sm ml-3 custom-btn remove-attribute"><i class="fas fa-trash"></i></button>
+                    </div>
+                `);
+            });
+
+            $("#saveEditEntity").click(function (e) {
+                e.preventDefault();
+                var formData = $("#editEntityForm").serialize();
+                $.post("/Home/EditEntity", formData, function (data) {
+                    if (data.success) {
+                        updateEntityTable(data.entities);
+                        updateEntityDropdowns();
+                        $("#editEntityModal").modal("hide");
+                    } else {
+                        alert(data.message || "Lỗi không xác định khi sửa thực thể.");
+                    }
+                }).fail(function (xhr) {
+                    alert("Lỗi khi sửa thực thể: " + (xhr.responseJSON?.message || xhr.responseText || "Lỗi không xác định."));
+                });
+            });
+        });
+
+        function updateEntityTable(entities) {
+            $("#entityTableBody").empty();
+            if (entities && Array.isArray(entities) && entities.length > 0) {
+                entities.forEach(entity => {
+                    $("#entityTableBody").append(`
+                        <tr data-id="${entity.id}">
+                            <td>${entity.name || "N/A"}</td>
+                            <td>${entity.attributes && entity.attributes.length > 0 ? entity.attributes.map(a => a.name + (a.isPrimaryKey ? " (PK)" : "")).join(", ") : "No attributes"}</td>
+                            <td>
+                                <button class="btn btn-warning btn-sm custom-btn mr-2" onclick="editEntity('${entity.name}')"><i class="fas fa-edit"></i></button>
+                                <button class="btn btn-danger btn-sm custom-btn" onclick="deleteEntity('${entity.name}')"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `);
+                });
+            } else {
+                $("#entityTableBody").append("<tr><td colspan='3' class='text-center text-light'>Không có thực thể nào</td></tr>");
+            }
+        }
+
+        function updateRelationshipTable(relationships) {
+            $("#relationshipTableBody").empty();
+            if (relationships && Array.isArray(relationships) && relationships.length > 0) {
+                relationships.forEach((rel, index) => {
+                    $("#relationshipTableBody").append(`
+                        <tr data-entity1="${rel.entity1 || ""}" data-entity2="${rel.entity2 || ""}">
+                            <td>${rel.entity1 || "N/A"}</td>
+                            <td>${rel.entity2 || "N/A"}</td>
+                            <td>${rel.type || "N/A"}</td>
+                            <td>
+                                <button class="btn btn-danger btn-sm custom-btn" onclick="deleteRelationship('${rel.entity1 || ""}', '${rel.entity2 || ""}')"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `);
+                });
+            } else {
+                $("#relationshipTableBody").append("<tr><td colspan='4' class='text-center text-light'>Không có mối quan hệ nào</td></tr>");
+            }
+        }
+
+        function updateEntityDropdowns() {
+            $.get("/Home/GetPhysicalDesign", function (data) {
+                if (data.success) {
+                    let entities = data.entities || [];
+                    $("#entity1, #entity2").empty();
+                    $("#entity1, #entity2").append(`<option value="">Chọn thực thể</option>`);
+                    entities.forEach(entity => {
+                        $("#entity1, #entity2").append(`<option value="${entity.name}">${entity.name}</option>`);
+                    });
+                } else {
+                    alert("Lỗi khi tải danh sách thực thể: " + (data.message || "Không xác định"));
+                }
+            }).fail(function (xhr) {
+                alert("Lỗi khi tải danh sách thực thể: " + xhr.responseText);
+            });
+        }
+
+        function deleteEntity(name) {
+            if (confirm("Bạn có chắc muốn xóa thực thể này?")) {
+                $.post("/Home/DeleteEntity", { name: name }, function (data) {
+                    if (data.success) {
+                        updateEntityTable(data.entities);
+                        updateEntityDropdowns();
+                        updateRelationshipTable(data.relationships);
+                    } else {
+                        alert(data.message || "Lỗi không xác định khi xóa thực thể.");
+                    }
+                }).fail(function (xhr) {
+                    alert("Lỗi khi xóa thực thể: " + (xhr.responseJSON?.message || xhr.responseText || "Lỗi không xác định."));
+                });
+            }
+        }
+
+        function deleteRelationship(entity1, entity2) {
+            if (confirm("Bạn có chắc muốn xóa mối quan hệ này?")) {
+                $.post("/Home/DeleteRelationship", { entity1: entity1, entity2: entity2 }, function (data) {
+                    if (data.success) {
+                        updateRelationshipTable(data.relationships);
+                    } else {
+                        alert(data.message);
+                    }
+                }).fail(function (xhr) {
+                    alert("Lỗi khi xóa mối quan hệ: " + xhr.responseText);
+                });
+            }
+        }
+
+        function editEntity(oldName) {
+            $.get("/Home/GetPhysicalDesign", function (data) {
+                if (data.success) {
+                    let entities = data.entities;
+                    let entity = entities.find(e => e.name === oldName);
+                    if (entity) {
+                        $("#editOldName").val(oldName);
+                        $("#editEntityName").val(oldName);
+                        $("#editAttributesContainer").empty();
+                        if (entity.attributes && entity.attributes.length > 0) {
+                            entity.attributes.forEach(attr => {
+                                $("#editAttributesContainer").append(`
+                                    <div class="form-group attribute-row d-flex align-items-center mb-3">
+                                        <label class="text-light mr-2">Thuộc tính:</label>
+                                        <input type="text" class="form-control custom-input w-50" name="attributeNames[]" value="${attr.name}" required />
+                                        <label class="ml-3 text-light">Khóa chính?</label>
+                                        <input type="checkbox" name="isPrimaryKeys[]" value="true" ${attr.isPrimaryKey ? "checked" : ""} class="ml-2 custom-checkbox" />
+                                        <input type="hidden" name="isPrimaryKeys[]" value="false" />
+                                        <button type="button" class="btn btn-danger btn-sm ml-3 custom-btn remove-attribute"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                `);
+                            });
+                        } else {
+                            $("#editAttributesContainer").append(`
+                                <div class="form-group attribute-row d-flex align-items-center mb-3">
+                                    <label class="text-light mr-2">Thuộc tính:</label>
+                                    <input type="text" class="form-control custom-input w-50" name="attributeNames[]" required />
+                                    <label class="ml-3 text-light">Khóa chính?</label>
+                                    <input type="checkbox" name="isPrimaryKeys[]" value="true" class="ml-2 custom-checkbox" />
+                                    <input type="hidden" name="isPrimaryKeys[]" value="false" />
+                                    <button type="button" class="btn btn-danger btn-sm ml-3 custom-btn remove-attribute"><i class="fas fa-trash"></i></button>
+                                </div>
+                            `);
+                        }
+                        $("#editEntityModal").modal("show");
+                    } else {
+                        alert("Thực thể không tồn tại!");
+                    }
+                } else {
+                    alert("Lỗi khi tải thông tin thực thể: " + (data.message || "Không xác định"));
+                }
+            }).fail(function (xhr) {
+                alert("Lỗi khi tải thông tin thực thể: " + (xhr.responseText || "Không xác định"));
+            });
+        }
+
+        function loadConceptualDesign() {
+            $.get("/Design/Conceptual", function (data) {
+                $("#resultDisplay").html(data);
+            }).fail(function (xhr) {
+                $("#resultDisplay").html(`<p class="text-light">Lỗi khi tải thiết kế quan niệm: ${xhr.responseText || "Không xác định"}</p>`);
+            });
+        }
+
+        function loadLogicalDesign() {
+            $.get("/Design/Logical", function (data) {
+                $("#resultDisplay").html(data);
+            }).fail(function (xhr) {
+                $("#resultDisplay").html(`<p class="text-light">Lỗi khi tải cấu trúc logic: ${xhr.responseText || "Không xác định"}</p>`);
+            });
+        }
+
+        function loadPhysicalDesign() {
+            $.get("/Home/GetPhysicalDesign", function (data) {
+                if (data.success) {
+                    let html = `
+                        <div id="physicalDesignTabs">
+                            <ul class="nav nav-tabs custom-tabs" role="tablist">
+                                <li class="nav-item">
+                                    <a class="nav-link active" id="editor-tab" data-toggle="tab" href="#editor" role="tab" aria-controls="editor" aria-selected="true">
+                                        <i class="fas fa-edit mr-2"></i>Chỉnh sửa
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" id="result-tab" data-toggle="tab" href="#result" role="tab" aria-controls="result" aria-selected="false">
+                                        <i class="fas fa-check mr-2"></i>Kết quả
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" id="sql-tab" data-toggle="tab" href="#sql" role="tab" aria-controls="sql" aria-selected="false">
+                                        <i class="fas fa-code mr-2"></i>Mã SQL
+                                    </a>
+                                </li>
+                            </ul>
+                            <div class="tab-content custom-tab-content mt-3">
+                                <div class="tab-pane fade show active" id="editor" role="tabpanel" aria-labelledby="editor-tab">
+                                    <h4 class="text-light mb-3">Cấu trúc vật lý (Chỉnh sửa)</h4>
+                                    <table class="table custom-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Thực thể</th>
+                                                <th>Thuộc tính</th>
+                                                <th>Khóa chính</th>
+                                                <th>Kiểu dữ liệu</th>
+                                                <th>Hành động</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="physicalDesignTableBody"></tbody>
+                                    </table>
+                                    <button class="btn btn-primary custom-btn" onclick="savePhysicalDesign()"><i class="fas fa-save mr-2"></i>Lưu thay đổi</button>
+                                </div>
+                                <div class="tab-pane fade" id="result" role="tabpanel" aria-labelledby="result-tab">
+                                    <h4 class="text-light mb-3">Cấu trúc vật lý (Kết quả)</h4>
+                                    <div id="physicalDesignResult"></div>
+                                </div>
+                                <div class="tab-pane fade" id="sql" role="tabpanel" aria-labelledby="sql-tab">
+                                    <h4 class="text-light mb-3">Mã SQL tạo bảng</h4>
+                                    <pre id="sqlCode" class="custom-pre"></pre>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    $("#resultDisplay").html(html);
+
+                    let tableBody = $("#physicalDesignTableBody");
+                    data.entities.forEach(entity => {
+                        entity.attributes.forEach(attr => {
+                            tableBody.append(`
+                                <tr>
+                                    <td>${entity.name}</td>
+                                    <td>${attr.name}</td>
+                                    <td>${attr.isPrimaryKey ? "Yes" : "No"}</td>
+                                    <td>
+                                        <select class="form-control custom-input data-type" data-entity="${entity.name}" data-attribute="${attr.name}">
+                                            <option value="" ${!attr.dataType ? "selected" : ""}>Chọn kiểu dữ liệu</option>
+                                            <option value="INT" ${attr.dataType === "INT" ? "selected" : ""}>INT</option>
+                                            <option value="VARCHAR" ${attr.dataType === "VARCHAR" ? "selected" : ""}>VARCHAR</option>
+                                            <option value="DATE" ${attr.dataType === "DATE" ? "selected" : ""}>DATE</option>
+                                            <option value="FLOAT" ${attr.dataType === "FLOAT" ? "selected" : ""}>FLOAT</option>
+                                        </select>
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            `);
+                        });
+                    });
+
+                    displayPhysicalDesignResult(data.entities);
+                    generateSQLCreateTable(data.entities);
+                } else {
+                    $("#resultDisplay").html("<p class='text-light'>Lỗi khi tải cấu trúc vật lý: " + data.message + "</p>");
+                }
+            }).fail(function (xhr) {
+                $("#resultDisplay").html("<p class='text-light'>Lỗi khi tải cấu trúc vật lý: " + xhr.responseText + "</p>");
+            });
+        }
+
+        function savePhysicalDesign() {
+            let updates = [];
+            $("#physicalDesignTableBody .data-type").each(function () {
+                let entityName = $(this).data("entity");
+                let attributeName = $(this).data("attribute");
+                let dataType = $(this).val();
+                if (dataType) {
+                    updates.push({ EntityName: entityName, AttributeName: attributeName, DataType: dataType });
+                }
+            });
+
+            if (updates.length > 0) {
+                $.post("/Home/UpdatePhysicalDesign", { updates: updates }, function (data) {
+                    if (data.success) {
+                        alert("Cập nhật cấu trúc vật lý thành công!");
+                        displayPhysicalDesignResult(data.entities);
+                        generateSQLCreateTable(data.entities);
+                    } else {
+                        alert(data.message || "Lỗi không xác định khi lưu thay đổi.");
+                    }
+                }).fail(function (xhr) {
+                    alert("Lỗi khi lưu thay đổi: " + (xhr.responseJSON?.message || xhr.responseText || "Lỗi không xác định."));
+                });
+            } else {
+                alert("Không có thay đổi nào để lưu!");
+            }
+        }
+
+        function displayPhysicalDesignResult(entities) {
+            let html = `
+                <table class="table custom-table">
+                    <thead>
+                        <tr>
+                            <th>Thực thể</th>
+                            <th>Thuộc tính</th>
+                            <th>Khóa chính</th>
+                            <th>Kiểu dữ liệu</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            let hasData = false;
+            entities.forEach(entity => {
+                entity.attributes.forEach(attr => {
+                    if (attr.dataType) {
+                        hasData = true;
+                        html += `
+                            <tr>
+                                <td>${entity.name}</td>
+                                <td>${attr.name}</td>
+                                <td>${attr.isPrimaryKey ? "Yes" : "No"}</td>
+                                <td>${attr.dataType || "Chưa xác định"}</td>
+                            </tr>
+                        `;
+                    }
+                });
+            });
+
+            if (!hasData) {
+                html += `
+                    <tr>
+                        <td colspan="4" class="text-center text-light">Chưa có kiểu dữ liệu nào được xác định.</td>
+                    </tr>
+                `;
+            }
+
+            html += `
+                    </tbody>
+                </table>
+            `;
+            $("#physicalDesignResult").html(html);
+        }
+
+        function generateSQLCreateTable(entities) {
+            let sql = "";
+            entities.forEach(entity => {
+                if (entity.attributes && entity.attributes.length > 0) {
+                    sql += `CREATE TABLE ${entity.name} (\n`;
+                    let columns = [];
+                    let primaryKeys = [];
+
+                    entity.attributes.forEach(attr => {
+                        let columnDef = `    ${attr.name} ${attr.dataType || 'VARCHAR(255)'}`;
+                        if (attr.isPrimaryKey) {
+                            primaryKeys.push(attr.name);
+                        }
+                        columns.push(columnDef);
+                    });
+
+                    sql += columns.join(',\n');
+                    if (primaryKeys.length > 0) {
+                        sql += `,\n    PRIMARY KEY (${primaryKeys.join(', ')})`;
+                    }
+                    sql += '\n);\n\n';
+                }
+            });
+
+            if (!sql) {
+                sql = "Chưa có dữ liệu để tạo mã SQL.";
+            }
+            $("#sqlCode").text(sql);
+        }
+
+        function generateERD() {
+            $.get("/Design/GenerateERD", function (data) {
+                if (data.success) {
+                    let mermaidCode = data.mermaidCode || "erDiagram\n    Chưa có dữ liệu để tạo ERD.";
+                    let html = `
+                        <h4 class="text-light mb-3">Mã ERD (Mermaid)</h4>
+                        <pre class="custom-pre" id="mermaidCode">${mermaidCode}</pre>
+                        <button class="btn btn-primary custom-btn mt-2" onclick="openMermaidLive()"><i class="fas fa-external-link-alt mr-2"></i>Mở trên Mermaid Live</button>
+                    `;
+                    $("#resultDisplay").html(html);
+                } else {
+                    $("#resultDisplay").html(`<p class="text-light">Lỗi khi tạo mã ERD: ${data.message || "Không xác định"}</p>`);
+                }
+            }).fail(function (xhr) {
+                $("#resultDisplay").html(`<p class="text-light">Lỗi khi tạo mã ERD: ${xhr.responseText || "Không xác định"}</p>`);
+            });
+        }
+
+        function openMermaidLive() {
+            let mermaidCode = $("#mermaidCode").text().trim();
+            if (mermaidCode && mermaidCode !== "erDiagram\n    Chưa có dữ liệu để tạo ERD.") {
+                let encodedCode = btoa(encodeURIComponent(mermaidCode));
+                let mermaidUrl = `https://mermaid.live/edit#pako:${encodedCode}`;
+                window.open(mermaidUrl, "_blank");
+            } else {
+                alert("Chưa có mã ERD để mở!");
+            }
+        }
+
+        function evaluateSchema() {
+            $.get("/Design/EvaluateSchema", function (data) {
+                $("#resultDisplay").html(data);
+            }).fail(function (xhr) {
+                $("#resultDisplay").html(`<p class="text-light">Lỗi khi đánh giá lược đồ: ${xhr.responseText || "Không xác định"}</p>`);
+            });
+        }
+    </script>
+}
