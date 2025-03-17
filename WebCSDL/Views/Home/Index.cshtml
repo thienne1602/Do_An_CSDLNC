@@ -694,9 +694,53 @@
 
         function evaluateSchema() {
             $.get("/Design/EvaluateSchema", function (data) {
-                $("#resultDisplay").html(data);
+                // Gỡ lỗi: In dữ liệu trả về để kiểm tra
+                console.log("Dữ liệu trả về từ /Design/EvaluateSchema:", data);
+
+                // Tách nội dung bằng regex
+                let checkNormalizationContent = data.match(/<div class=['"]check-normalization['"]>[\s\S]*?<\/div>/i)?.[0] || "<p>Không tìm thấy nội dung kiểm tra chuẩn hóa.</p>";
+                let solutionContent = data.match(/<div class=['"]solution-normalization['"]>[\s\S]*?<\/div>/i)?.[0] || "<p>Không tìm thấy nội dung hướng giải quyết.</p>";
+
+                // Gỡ lỗi: In nội dung đã tách
+                console.log("Check Normalization Content:", checkNormalizationContent);
+                console.log("Solution Content:", solutionContent);
+
+                // Tạo HTML với hai tab
+                let html = `
+                    <div class="custom-card">
+                        <div class="card-body">
+                            <ul class="nav nav-tabs custom-tabs" id="evaluateTabs" role="tablist">
+                                <li class="nav-item">
+                                    <a class="nav-link active" id="check-tab" data-toggle="tab" href="#checkTab" role="tab" aria-controls="checkTab" aria-selected="true">
+                                        <i class="fas fa-check-circle mr-2"></i>Kiểm tra chuẩn hóa
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" id="solution-tab" data-toggle="tab" href="#solutionTab" role="tab" aria-controls="solutionTab" aria-selected="false">
+                                        <i class="fas fa-lightbulb mr-2"></i>Hướng giải quyết
+                                    </a>
+                                </li>
+                            </ul>
+                            <div class="tab-content custom-tab-content mt-3">
+                                <div class="tab-pane fade show active" id="checkTab" role="tabpanel" aria-labelledby="check-tab">
+                                    ${checkNormalizationContent}
+                                </div>
+                                <div class="tab-pane fade" id="solutionTab" role="tabpanel" aria-labelledby="solution-tab">
+                                    ${solutionContent}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                $("#resultDisplay").html(html);
             }).fail(function (xhr) {
-                $("#resultDisplay").html(`<p class="text-light">Lỗi khi đánh giá lược đồ: ${xhr.responseText || "Không xác định"}</p>`);
+                $("#resultDisplay").html(`
+                    <div class="custom-card">
+                        <div class="card-body">
+                            <p class="text-light">Lỗi khi đánh giá lược đồ: ${xhr.responseText || "Không xác định"}</p>
+                        </div>
+                    </div>
+                `);
             });
         }
     </script>
